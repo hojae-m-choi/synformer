@@ -438,11 +438,12 @@ def run_parallel_sampling_return_smiles_no_early_stop(
 
     return df_merge
 
+
 def run_sampling_one_cpu(
     input: Molecule,
     model_path: pathlib.Path,
-    mat_path: pathlib.Path,
-    fpi_path: pathlib.Path,
+    mat_path: pathlib.Path = None,
+    fpi_path: pathlib.Path = None,
     search_width: int = 24,
     exhaustiveness: int = 64,
     time_limit: int = 180,
@@ -458,11 +459,13 @@ def run_sampling_one_cpu(
     model.eval()
     _model = model
 
-    state_pool_opt={
+    state_pool_opt = {
         "factor": search_width,
         "max_active_states": exhaustiveness,
         "sort_by_score": sort_by_scores,
     }
+    fpi_path = fpi_path if fpi_path is not None else config.chem.fpindex
+    mat_path = mat_path if mat_path is not None else config.chem.rxn_matrix
     _fpindex: FingerprintIndex = pickle.load(open(fpi_path, "rb"))
     _rxn_matrix: ReactantReactionMatrix = pickle.load(open(mat_path, "rb"))
 
@@ -487,7 +490,7 @@ def run_sampling_one_cpu(
             if max_sim == 1.0:
                 break
 
-        df = sampler.get_dataframe()[: max_results]
+        df = sampler.get_dataframe()[:max_results]
 
         # if len(df) == 0:
         #     print(f"{input.smiles}: No results for {next_task.smiles}")

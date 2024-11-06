@@ -155,16 +155,13 @@ class Molecule(Drawable):
         return torch.tensor(tokenize_smiles(self.csmiles), dtype=torch.long)
 
     @overload
-    def get_fingerprint(self, option: FingerprintOption) -> np.ndarray:
-        ...
+    def get_fingerprint(self, option: FingerprintOption) -> np.ndarray: ...
 
     @overload
-    def get_fingerprint(self, option: FingerprintOption, as_bitvec: Literal[True]) -> Sequence[Literal[0, 1]]:
-        ...
+    def get_fingerprint(self, option: FingerprintOption, as_bitvec: Literal[True]) -> Sequence[Literal[0, 1]]: ...
 
     @overload
-    def get_fingerprint(self, option: FingerprintOption, as_bitvec: Literal[False]) -> np.ndarray:
-        ...
+    def get_fingerprint(self, option: FingerprintOption, as_bitvec: Literal[False]) -> np.ndarray: ...
 
     def get_fingerprint(self, option: FingerprintOption, as_bitvec: bool = False):
         return self._get_fingerprint(option, as_bitvec)  # work-around for mypy check
