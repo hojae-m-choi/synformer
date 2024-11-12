@@ -4,7 +4,7 @@ import os
 import pathlib
 from collections.abc import Iterable, Sequence
 from functools import cache, cached_property, partial
-from typing import Literal, overload
+from typing import Literal, overload, Union, Tuple
 
 import numpy as np
 import pandas as pd
@@ -112,11 +112,13 @@ class Molecule(Drawable):
     def num_atoms(self) -> int:
         return self._rdmol.GetNumAtoms()
 
-    def draw(self, size: int = 100, svg: bool = False):
+    def draw(self, size: Union[Tuple[int, int], int] = 100, svg: bool = False):
+        if isinstance(size, int):
+            size = (size, size)
         if svg:
-            return Draw._moltoSVG(self._rdmol, sz=(size, size), highlights=[], legend=[], kekulize=True)
+            return Draw._moltoSVG(self._rdmol, sz=size, highlights=[], legend=[], kekulize=True)
         else:
-            return Draw.MolToImage(self._rdmol, size=(size, size), kekulize=True)
+            return Draw.MolToImage(self._rdmol, size=size, kekulize=True)
 
     def __hash__(self) -> int:
         return hash(self._smiles)

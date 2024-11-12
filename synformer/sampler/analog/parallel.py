@@ -301,6 +301,39 @@ def run_parallel_sampling(
     time_limit: int = 180,
     sort_by_scores: bool = True,
 ) -> None:
+    """
+    Run sampling with Synformer in parallel on multiple GPUs.
+    This write the results to a CSV file directly.
+
+    Parameters
+    ----------
+    input : list[Molecule]
+        List of target molecules to synthesize.
+    output : pathlib.Path
+        Path to save the results.
+    model_path : pathlib.Path
+        Path to load the trained model.
+    search_width : int, optional
+        Maximum number of simultaneous states to explore.
+    exhaustiveness : int, optional
+        Maximum number of states to explore before giving up.
+    num_gpus : int, optional
+        Number of GPUs to use. If <= 0, use all available GPUs.
+    num_workers_per_gpu : int, optional
+        Number of worker processes to run on each GPU.
+    task_qsize : int, optional
+        Maximum number of tasks to queue up in memory.
+    result_qsize : int, optional
+        Maximum number of results to queue up in memory.
+    time_limit : int, optional
+        Maximum amount of time to spend on each target (in seconds).
+    sort_by_scores : bool, optional
+        If True, sort the results by score in descending order.
+
+    Returns
+    -------
+    None
+    """
     num_gpus = num_gpus if num_gpus > 0 else _count_gpus()
     pool = WorkerPool(
         gpu_ids=list(range(num_gpus)),
@@ -315,6 +348,7 @@ def run_parallel_sampling(
         },
         time_limit=time_limit,
     )
+    ## make output directory
     output.parent.mkdir(parents=True, exist_ok=True)
 
     total = len(input)
@@ -327,15 +361,17 @@ def run_parallel_sampling(
             _, df = pool.fetch()
             if len(df) == 0:
                 continue
+            # this is write the results to a CSV file. NOTE: the results are appended.
             df.to_csv(f, float_format="%.3f", index=False, header=f.tell() == 0)
             df_all.append(df)
 
     df_merge = pd.concat(df_all, ignore_index=True)
+    # printing average score
     print(df_merge.loc[df_merge.groupby("target").idxmax()["score"]].select_dtypes(include="number").sum() / total)
-
+    # printing success rate
     count_success = len(df_merge["target"].unique())
     print(f"Success rate: {count_success}/{total} = {count_success / total:.3f}")
-
+    # printing reconstruction rate
     recons_targets: set[str] = set()
     for _, row in df_merge.iterrows():
         if row["score"] == 1.0:
@@ -361,6 +397,37 @@ def run_parallel_sampling_return_smiles(
     time_limit: int = 180,
     sort_by_scores: bool = True,
 ) -> None:
+    """
+    Run Synformer in parallel on multiple GPUs and return the results as a single DataFrame.
+
+    Parameters
+    ----------
+    input : list[Molecule]
+        List of target molecules to synthesize.
+    model_path : pathlib.Path
+        Path to load the trained model.
+    search_width : int, optional
+        Maximum number of simultaneous states to explore.
+    exhaustiveness : int, optional
+        Maximum number of states to explore before giving up.
+    num_gpus : int, optional
+        Number of GPUs to use. If <= 0, use all available GPUs.
+    num_workers_per_gpu : int, optional
+        Number of worker processes to run on each GPU.
+    task_qsize : int, optional
+        Maximum number of tasks to queue up in memory.
+    result_qsize : int, optional
+        Maximum number of results to queue up in memory.
+    time_limit : int, optional
+        Maximum amount of time to spend on each target (in seconds).
+    sort_by_scores : bool, optional
+        If True, sort the results by score in descending order.
+
+    Returns
+    -------
+    pd.DataFrame
+        Concatenated DataFrame of results from each target molecule.
+    """
     num_gpus = num_gpus if num_gpus > 0 else _count_gpus()
     pool = WorkerPool(
         gpu_ids=list(range(num_gpus)),
@@ -448,6 +515,7 @@ def run_sampling_one_cpu(
     exhaustiveness: int = 64,
     time_limit: int = 180,
     max_results: int = 100,
+    num_calc_extra_metrics: int = 10,
     max_evolve_steps: int = 12,
     sort_by_scores: bool = True,
 ) -> pd.DataFrame:
@@ -490,7 +558,7 @@ def run_sampling_one_cpu(
             if max_sim == 1.0:
                 break
 
-        df = sampler.get_dataframe()[:max_results]
+        df = sampler.get_dataframe(num_calc_extra_metrics=num_calc_extra_metrics)[:max_results]
 
         # if len(df) == 0:
         #     print(f"{input.smiles}: No results for {next_task.smiles}")
